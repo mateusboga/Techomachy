@@ -1,6 +1,6 @@
 	var canvas = document.getElementById('mainc');
 	var C = {width:0,height:0,fps:60}; C.width = canvas.width; C.height = canvas.height; C.centerX = C.width/2; C.centerY = C.height/2;
-	var mouse = {x:0,y:0}, player = {x:C.centerX,y:50,velx:0,vely:20,speed:3}, move = {a:false,w:false,s:false,d:false};
+	var mouse = {x:0,y:0}, player = {x:C.centerX,y:50,velx:0,vely:20,speed:3,rot:0}, move = {a:false,w:false,s:false,d:false};
 	var ctx = canvas.getContext("2d");
 	
 	setInterval(function() {
@@ -14,7 +14,7 @@
 	
 	function draw(){
 		ctx.clearRect(0,0,C.width,C.height)
-		drawplayer(player.x,player.y);
+		drawplayer(player.x,player.y,player.rot);
 		
 		drawcursor(mouse.x,mouse.y);
 	}
@@ -28,9 +28,21 @@
 		ctx.fillRect(x-1,y+10,2,-6);
 	}
 	
-	function drawplayer(x,y){
+	function drawplayer(x,y,r){
+		var dx = mouse.x - player.x;
+		var dy = mouse.y - player.y;
+		var laser = ctx.createLinearGradient(0,0,300,0); laser.addColorStop(0,"rgba(255,20,0,0.4)"); laser.addColorStop(1,"rgba(255,20,0,0)");
+		player.rot = Math.atan2(dy, dx);
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.rotate(r);
 		ctx.fillStyle = "#34aaff"
-		ctx.fillRect(x-10,y-10,20,20);
+		ctx.fillRect(-10,-10,20,20);
+		ctx.fillRect(-10,-4,30,8);
+		ctx.fillStyle = laser
+		ctx.fillRect(10,-6,3000,2);
+		ctx.translate(0, 0);
+		ctx.restore();
 	}
 	
 	function getMousePos(canvas, evt) {
@@ -46,25 +58,6 @@
 	canvas.onmousedown = function(){
 		mouseclick();
 	};
-	//window.addEventListener( "keydown", keyDown, true )
-	//canvas.addEventListener( "keyup", keyUp, true )
-	
-	/*function keyDown(e){
-		key = e.keyCode;
-		if( key == 97 ){
-			player.velx = -5;
-		}
-		if( key == 100 ){
-			player.velx = 5;
-		}
-		if( key == 119 ){
-			player.vely = -5;
-		}
-		if( key == 115 ){
-			player.vely = 5;
-		}
-		
-	}*/
 	
 	window.onkeydown = function (e){
 		key = e.keyCode ? e.keyCode : e.which;
@@ -106,19 +99,19 @@
 		if(move.s == true && move.w == false){
 			player.vely = player.speed;
 		};
-		if(move.a == true && move.w == true){
+		if(move.a == true && move.w == true && move.d == false && move.s == false){
 			player.velx = -player.speed/Math.sqrt(2);
 			player.vely = -player.speed/Math.sqrt(2);
 		};
-		if(move.d == true && move.s == true){
+		if(move.d == true && move.s == true && move.a == false && move.w == false){
 			player.velx = player.speed/Math.sqrt(2);
 			player.vely = player.speed/Math.sqrt(2);
 		};
-		if(move.w == true && move.d == true){
+		if(move.w == true && move.d == true && move.a == false && move.s == false){
 			player.velx = player.speed/Math.sqrt(2);
 			player.vely = -player.speed/Math.sqrt(2);
 		};
-		if(move.s == true && move.a == true){
+		if(move.s == true && move.a == true && move.w == false && move.d == false){
 			player.velx = -player.speed/Math.sqrt(2);
 			player.vely = player.speed/Math.sqrt(2);
 		};
