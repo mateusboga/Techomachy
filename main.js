@@ -1,8 +1,9 @@
 	var canvas = document.getElementById('mainc');
 	var C = {width:0,height:0,fps:60}; C.width = canvas.width; C.height = canvas.height; C.centerX = C.width/2; C.centerY = C.height/2;
-	var mouse = {x:0,y:0}, player = {x:C.centerX,y:50,velx:0,vely:20,speed:3,rot:0,laser:false,fire:0,trigger:10,recoil:2,ammo:50,health:100}, move = {a:false,w:false,s:false,d:false};
+	var mouse = {x:0,y:0}, player = {x:C.centerX,y:50,velx:0,vely:20,speed:3,rot:0,laser:false,fire:0,trigger:3,recoil:2,ammo:150,health:100}, move = {a:false,w:false,s:false,d:false};
 	var ctx = canvas.getContext("2d"); var mousepress = false; var HOpaque = 1.0; 
 	
+	var shotsourcefile = "sounds/shot.wav";
 	var spr_player = new Image();
 	spr_player.src = "sprites/armguard1.png";
 	var spr_muzzle = new Image();
@@ -70,8 +71,18 @@
 			ctx.shadowBlur = 25;
 			ctx.shadowOffsetX = 0;
 			ctx.shadowOffsetY = 0;
-			ctx.fillRect(30,-1,3000,2);
+			ctx.fillRect(30,-1,3000,2);  if(shotsourcefile == "sounds/darkshot.wav"){ ctx.fillRect(30,-3,3000,6) }
 			ctx.drawImage(spr_muzzle,20,-20,60,40)
+			if(player.scatter > 0){
+				ctx.rotate(Math.random()*(player.scatter/20)-(player.scatter/20)/2);
+				ctx.fillRect(30,-1,3000,2);
+				ctx.rotate(Math.random()*(player.scatter/20)-(player.scatter/20)/2);
+				ctx.fillRect(30,-1,3000,2);
+				ctx.rotate(Math.random()*(player.scatter/20)-(player.scatter/20)/2);
+				ctx.fillRect(30,-1,3000,2);
+				ctx.rotate(Math.random()*(player.scatter/20)-(player.scatter/20)/2);
+				ctx.fillRect(30,-1,3000,2);
+			}
 			ctx.shadowColor = 'rgba(0,0,0,0)';
 		}
 		ctx.beginPath();
@@ -90,6 +101,26 @@
 		ctx.restore();
 	}
 	
+	
+	function equipRifle() {
+		player.trigger=10;player.recoil=2;player.scatter=0;player.fire=0;
+		spr_player.src = "sprites/armguard1.png";shotsourcefile = "sounds/shot.wav";
+		s_equip = new Audio("sounds/equip2.wav"); s_equip.play();
+	}
+	function equipCanon() {
+		player.trigger=50;player.recoil=5;player.scatter=0;player.fire=0;
+		spr_player.src = "sprites/armguardcanon.png";shotsourcefile = "sounds/darkshot.wav";
+		s_equip = new Audio("sounds/equip3.wav"); s_equip.play();
+	}
+	function equipShotgun() {
+		player.trigger=40;player.recoil=2;player.scatter=5;player.fire=0;
+		spr_player.src = "sprites/armguardbarrel.png";shotsourcefile = "sounds/barrel.wav";
+		s_equip = new Audio("sounds/equip1.wav"); s_equip.play();
+	}
+	
+	
+	
+	
 	function getMousePos(canvas, evt) {
 		//Update the mouse position
         var rekt = canvas.getBoundingClientRect();
@@ -105,15 +136,16 @@
 	};
 	$('#mainc').on('mousedown mouseup', function mouseState(e) {
 		if (e.type == "mousedown") {
-			mousepress = true;console.log("hold")
+			mousepress = true;
 			mouseclick();
 		}else{
-			mousepress = false;console.log("unhold")
+			mousepress = false;
 		}
 	});
 	
 	window.onkeydown = function (e){
 		key = e.keyCode ? e.keyCode : e.which;
+		console.log(key)
 		switch(key){
 			case 65:
 				move.a = true; break;
@@ -125,6 +157,12 @@
 				move.s = true; break;
 			case 82:
 				if(player.laser == false){player.laser = true}else{player.laser = false}
+			case 49:
+				equipRifle(); break;
+			case 50:
+				equipCanon(); break;
+			case 51:
+				equipShotgun(); break;
 		}
 	}
 	window.onkeyup = function (e){
@@ -182,7 +220,7 @@
 				if (  -y > x*2 && -y < -x*2  )   {player.velx = player.recoil;}  //left triangle
 				else if(  -y < x*2 && -y > -x*2  )    {player.velx = -player.recoil;}  //right triangle
 				
-				var s_shot1 = new Audio("sounds/shot.wav");
+				var s_shot1 = new Audio(shotsourcefile);
 				s_shot1.play();
 				player.ammo--
 			}
