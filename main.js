@@ -21,7 +21,7 @@
 	spr_flash.src = "sprites/flashhalo.png";
 	var spr_expl1 = new Image(), spr_expl2 = new Image(), spr_expl3 = new Image(), spr_expl4 = new Image();
 	spr_expl1.src = "sprites/explosion1.png",spr_expl2.src = "sprites/explosion2.png",spr_expl3.src = "sprites/explosion3.png",spr_expl4.src = "sprites/explosion4.png";
-	var robotsprite = new Image(); robotsprite.src = "sprites/robot1.png"; var barrelsprite = new Image(); barrelsprite.src="sprites/barrel.png";
+	var robotsprite = new Image(); robotsprite.src = "sprites/robot1.png"; var barrelsprite = new Image(); barrelsprite.src="sprites/barrel.png";var robotspritelegs = new Image(); robotspritelegs.src = "sprites/robot1legs.png";
 	var spr_spark1 = new Image(); spr_spark1.src="sprites/spark1.png"; var spr_spark2 = new Image(); spr_spark2.src="sprites/spark2.png"; var spr_spark3 = new Image(); spr_spark3.src="sprites/spark3.png";
 	
 	var riflesprite = "sprites/armguard1.png", cannonsprite = "sprites/armguardcanon.png", shotgunsprite = "sprites/armguardbarrel.png",silencesprite = "sprites/armguardsilence.png"
@@ -55,18 +55,18 @@
 	
 	function gameConstruct(){
 		
-		var Enemy1 = new Enemy("Robot1", "bot", robotsprite, 120, 250, 60, 60, 0.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
-		var Enemy2 = new Enemy("Robot2", "bot", robotsprite, 250, 300, 60, 60, 1.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 20, 10, true, 300);
-		var Enemy3 = new Enemy("Robot3", "bot", robotsprite, 200, 350, 60, 60, 2.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 20, 10, true, 300);
+		var Enemy1 = new Enemy("Robot1", "bot", robotsprite, robotspritelegs, 120, 250, 60, 60, 0.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
+		var Enemy2 = new Enemy("Robot2", "bot", robotsprite, robotspritelegs, 250, 300, 60, 60, 1.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
+		var Enemy3 = new Enemy("Robot3", "bot", robotsprite, robotspritelegs, 200, 350, 60, 60, 2.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
 		var Barrel = new G_Object("Barrel1", "explosive", barrelsprite, 500, 350, 40, 40, true, 20);
 		GameObjects.push(Enemy1);GameObjects.push(Enemy2);GameObjects.push(Enemy3);GameObjects.push(Barrel);
 	};gameConstruct();
 	
-	function Enemy(name, t, sprite, x, y, w, h, r, rv, rd, s, hp, ho, hito, fi, tri, dmg, d, range){
-		return {name: name, type: t, spr: sprite, x: x, y: y, w: w, h: h, rot: r, rotv: rv, rotd: rd, speed: s, hp: hp, ho: ho, hito: hito, fire: fi, trigger: tri, dmg: dmg, alive: d, range: range}
+	function Enemy(name, t, sprite, sprite2, x, y, w, h, r, rv, rd, s, hp, ho, hito, fi, tri, dmg, d, range){
+		return {name: name, type: t, spr: sprite, spr2: sprite2, x: x, y: y, w: w, h: h, rot: r, rotv: rv, rotd: rd, speed: s, hp: hp, ho: ho, hito: hito, fire: fi, trigger: tri, dmg: dmg, alive: d, range: range}
 	}
 	function G_Object(name, t, sprite, x, y, w, h, destr, hp){
-		return {name: name, type: t, sprite: sprite, x: x, y: y, w: w, h: h, candestroy: destr, hp: hp}
+		return {name: name, type: t, sprite: sprite, x: x, y: y, w: w, h: h, candestroy: destr, hp: hp, expl: 0}
 	}
 	
 	function getCenter(){
@@ -98,7 +98,7 @@
 					ctx.font = "bold 15px serif";
 					ctx.fillText(""+obj.type,mouse.x+10,mouse.y+15);
 				}
-				if( player.fire == player.trigger ){
+				if( player.fire == player.trigger-1 ){
 					drawspark(x,y);
 				}
 			}
@@ -143,14 +143,25 @@
 				ctx.shadowBlur = 20;
 				ctx.shadowOffsetX = (obj.x - C.centerX)/15;
 				ctx.shadowOffsetY = (obj.y - C.centerY)/15;
-				ctx.drawImage(barrelsprite,0-obj.w/2,0-obj.h/2,obj.w,obj.h)
+				if( obj.expl < 1 ){ ctx.drawImage(barrelsprite,0-obj.w/2,0-obj.h/2,obj.w,obj.h) }
 				ctx.shadowColor = 'rgba(0,0,0,0)';
+				if( obj.expl >= 1 ){
+					switch(obj.expl){
+						case 1: ctx.drawImage(spr_expl1,-60,-60,120,120); break;
+						case 2: ctx.drawImage(spr_expl2,-60,-60,120,120); break;
+						case 3: ctx.drawImage(spr_expl3,-60,-60,120,120); break;
+						case 4: ctx.drawImage(spr_expl4,-60,-60,120,120); break;
+						case 5: GameObjects.splice(i, 1); break;
+					}obj.expl++;
+				}
 				ctx.restore();
 			}
 			if (obj.type == "bot"){
 				var laser = ctx.createLinearGradient(0,0,500,0); laser.addColorStop(0,"rgba(255,20,0,0.4)"); laser.addColorStop(1,"rgba(255,20,0,0)");
 				ctx.save();
+				ctx.globalAlpha = obj.alpha;
 				ctx.translate(obj.x,obj.y);
+				if( obj.spr2 ){ ctx.drawImage(obj.spr2,0-obj.w/2,0-obj.h/2,obj.w,obj.h) }
 				ctx.rotate(obj.rot);
 				ctx.fillStyle = "#ff0000"
 				ctx.translate(0, 0);
@@ -159,6 +170,7 @@
 				ctx.shadowOffsetX = (obj.x - C.centerX)/15;
 				ctx.shadowOffsetY = (obj.y - C.centerY)/15;
 				ctx.drawImage(obj.spr,0-obj.w/2,0-obj.h/2,obj.w,obj.h)
+				ctx.globalAlpha = 1.0;
 				ctx.shadowColor = 'rgba(0,0,0,0)';
 				if ( obj.alive == true ){
 					ctx.fillStyle = laser
@@ -204,7 +216,11 @@
 				ctx.fill();*/
 				
 				if (obj.ho > 0.0) { obj.ho -= 0.005 }
-				if(obj.fire > 0){obj.fire--}
+				if (obj.fire > 0){obj.fire--}
+				if (obj.timer > -1){ obj.timer++; if( obj.timer > 200 && obj.alpha > 0){ obj.alpha -= 0.0033 } }
+				if (obj.timer > 500){
+					GameObjects.splice(i, 1);
+				}
 				
 				ctx.restore();
 			}
@@ -237,19 +253,20 @@
 			ctx.shadowBlur = 25;
 			ctx.shadowOffsetX = 0;
 			ctx.shadowOffsetY = 0;
-			ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; testforTarget();
+			ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2;
 			if(shotsourcefile == "sounds/darkshot.wav"){ ctx.lineWidth = 6; } ctx.stroke();
 			ctx.drawImage(spr_muzzle,20,-20,60,40)
 			if(player.scatter > 0){
 				ctx.rotate(Math.random()*(player.scatter/10)-(player.scatter/10)/2);
-				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; testforTarget(); ctx.stroke();
+				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; ctx.stroke();
 				ctx.rotate(Math.random()*(player.scatter/10)-(player.scatter/10)/2);
-				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; testforTarget(); ctx.stroke();
+				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; ctx.stroke();
 				ctx.rotate(Math.random()*(player.scatter/10)-(player.scatter/10)/2);
-				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; testforTarget(); ctx.stroke();
+				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; ctx.stroke();
 				ctx.rotate(Math.random()*(player.scatter/10)-(player.scatter/10)/2);
-				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; testforTarget(); ctx.stroke();
+				ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(C.width*2, 0); ctx.lineWidth = 2; ctx.stroke();
 			}
+			testforTarget();
 			ctx.shadowColor = 'rgba(0,0,0,0)';
 		}
 		
@@ -340,7 +357,15 @@
 					var robotspritedead = new Image(); robotspritedead.src = "sprites/robot1dead.png"; s_explosion = new Audio(s_explode);
 					s_explosion.play();
 					obj.spr = robotspritedead;
-					obj.alive = false
+					obj.alive = false; if(!obj.timer) { obj.timer = 0; }; obj.alpha = 1.0;
+					obj.expl = 1;
+				}
+			}
+			if( obj.type == "explosive" && obj.hp > 0 && mouse.x < obj.x+(obj.w/2) && mouse.x > obj.x-(obj.w/2) && mouse.y < obj.y+(obj.h/2) && mouse.y > obj.y-(obj.h/2) ){
+				obj.hp -= player.hit;
+				if( obj.hp < 1 ){
+					s_explosion = new Audio(s_explode);
+					s_explosion.play();
 					obj.expl = 1;
 				}
 			}
@@ -484,7 +509,12 @@
 	
 	function moving(){
 		if(move.a == true && move.d == false){
-			player.velx = -player.speed;
+			//for(i = 0; i < GameObjects.length; i++){ obj = GameObjects[i]
+				//if( !((player.x-30 > obj.x || player.x+30 < obj.x) && (player.y-obj.height)) ){
+					// player.x = obj.x+29 » player.x !> obj.x & player.x
+					player.velx = -player.speed;
+				//}
+			//}
 		};
 		if(move.d == true && move.a == false){
 			player.velx = player.speed;
