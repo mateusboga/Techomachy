@@ -7,12 +7,13 @@
 	
 	var canvas = document.getElementById('mainc');
 	var C = {width:canvas.width,height:canvas.height,fps:33}; C.centerX = C.width/2; C.centerY = C.height/2;
-	var mouse = {x:0,y:0}, player = {x:600,y:50,velx:0,vely:0,speed:5,rot:0,laser:false,fire:0,trigger:3,recoil:2,ammo:150,health:100,hit:15,alive:true, cooldown: 0}, move = {a:false,w:false,s:false,d:false};
-	var ctx = canvas.getContext("2d"); var mousepress = false; var HOpaque = 0.0; var Stealth = 0; var Supress = 50;
-	var GameObjects = [];
+	var mouse = {x:0,y:0}, player = {x:600,y:50,velx:0,vely:0,speed:5,rot:0,laser:false,fire:0,trigger:5,recoil:2,ammo:150,health:100,hit:15,alive:true, cooldown: 0, invis: 0}, move = {a:false,w:false,s:false,d:false};
+	var ctx = canvas.getContext("2d"); var mousepress = false; var HOpaque = 0.0; var Stealth = 0; var Supress = 50; var XP = 0; var PI = Math.PI;
+	var GameObjects = []; var Volume = 1.0;
 	var LC = {};
 	
-	var shotsourcefile = "sounds/shot.wav";
+	var shotsourcefile = "sounds/shot.wav", src_rifleshot = "sounds/shot.wav", src_silenceshot = "sounds/shotsilenced.wav", src_cannonshot = "sounds/darkshot.wav", src_shotgunshot = "sounds/barrel.wav";
+	var s_rifleshot = new Audio();
 	var spr_player = new Image();
 	spr_player.src = "sprites/armguard1.png";
 	var spr_muzzle = new Image();
@@ -29,6 +30,19 @@
 	var s_hit1 = "sounds/hit1.wav", s_hit2 = "sounds/hit2.wav", s_hit3 = "sounds/hit3.wav", s_hit4 = "sounds/hit4.wav", s_hit5 = "sounds/hit5.wav";
 	var s_explode = "sounds/explosion.wav";
 	var s_empty = "sounds/empty.wav";
+	var s_invis = new Audio(); s_invis.src = "sounds/invis.wav";var s_invisoff = new Audio(); s_invisoff.src = "sounds/invis-off.wav";
+	
+	$("#slider").slider({
+		value  : 75,
+		step   : 1,
+		range  : 'min',
+		min    : 0,
+		max    : 100,
+		change : function(){
+			var value = $("#slider").slider("value");
+			Volume = value/100;
+		}
+	});
 	
 	/*
 		------
@@ -44,7 +58,7 @@
 		moving();
 		if(player.velx < 1 && player.velx > -1){ player.velx = 0 }
 		if(player.vely < 1 && player.vely > -1){ player.vely = 0 }
-		if(player.fire > 0){player.fire--}; if( Stealth > 0.5 ){ Stealth-= 0.1 }else{ Stealth=0}; if( player.cooldown > 0 ){ player.cooldown-- };
+		if(player.fire > 0){player.fire--}; if( Stealth > 0.5 ){ Stealth-= 0.1+player.invis/10000; }else{ Stealth=0}; if( player.cooldown > 0 ){ player.cooldown-- }; if(player.invis > 0){ player.invis-- }; if( Stealth > 10 && player.invis > 0 ){ player.invis = 0; s_invisoff.volume = Volume; s_invisoff.play(); };
 	},1000/C.fps)
 	
 	/*
@@ -55,15 +69,15 @@
 	
 	function gameConstruct(){
 		
-		var Enemy1 = new Enemy("Robot1", "bot", robotsprite, robotspritelegs, 120, 250, 60, 60, 0.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
-		var Enemy2 = new Enemy("Robot2", "bot", robotsprite, robotspritelegs, 250, 300, 60, 60, 1.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
-		var Enemy3 = new Enemy("Robot3", "bot", robotsprite, robotspritelegs, 200, 350, 60, 60, 2.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300);
+		var Enemy1 = new Enemy("Robot1", "bot", robotsprite, robotspritelegs, 120, 250, 60, 60, 0.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300, 20);
+		var Enemy2 = new Enemy("Robot2", "bot", robotsprite, robotspritelegs, 250, 300, 60, 60, 1.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300, 20);
+		var Enemy3 = new Enemy("Robot3", "bot", robotsprite, robotspritelegs, 200, 350, 60, 60, 2.0, 0.03, 0.01, 0, 100, 0.0, 0.0, 0, 10, 5, true, 300, 20);
 		var Barrel = new G_Object("Barrel1", "explosive", barrelsprite, 500, 350, 40, 40, true, 20);
 		GameObjects.push(Enemy1);GameObjects.push(Enemy2);GameObjects.push(Enemy3);GameObjects.push(Barrel);
 	};gameConstruct();
 	
-	function Enemy(name, t, sprite, sprite2, x, y, w, h, r, rv, rd, s, hp, ho, hito, fi, tri, dmg, d, range){
-		return {name: name, type: t, spr: sprite, spr2: sprite2, x: x, y: y, w: w, h: h, rot: r, rotv: rv, rotd: rd, speed: s, hp: hp, ho: ho, hito: hito, fire: fi, trigger: tri, dmg: dmg, alive: d, range: range}
+	function Enemy(name, t, sprite, sprite2, x, y, w, h, r, rv, rd, s, hp, ho, hito, fi, tri, dmg, d, range, xp){
+		return {name: name, type: t, spr: sprite, spr2: sprite2, x: x, y: y, w: w, h: h, rot: r, rotv: rv, rotd: rd, speed: s, hp: hp, ho: ho, hito: hito, fire: fi, trigger: tri, dmg: dmg, alive: d, range: range, xp: xp}
 	}
 	function G_Object(name, t, sprite, x, y, w, h, destr, hp){
 		return {name: name, type: t, sprite: sprite, x: x, y: y, w: w, h: h, candestroy: destr, hp: hp, expl: 0}
@@ -71,7 +85,7 @@
 	
 	function getCenter(){
 		_x = mouse.x/2+player.x/2; _y = mouse.y/2+(player.y)/2;
-		return {x: _x, y: _y, x0: _x-C.width/2, y0: _y-C.height/2 }
+		return {x: _x, y: _y, x0: (C.width/2), y0: (C.height/2) }
 	}
 	
 	/*
@@ -94,9 +108,10 @@
 		for(i = 0; i < GameObjects.length; i++){ obj = GameObjects[i];
 			if( mouse.x < obj.x+(obj.w/2) && mouse.x > obj.x-(obj.w/2) && mouse.y < obj.y+(obj.h/2) && mouse.y > obj.y-(obj.h/2)  ){
 				if( obj.type == "bot" && obj.alive == true ){
-					ctx.fillStyle = "rgba(255,0,0,0.7)";
+					ctx.fillStyle = "rgba(255,0,0,0.8)";
 					ctx.font = "bold 15px serif";
-					ctx.fillText(""+obj.type,mouse.x+10,mouse.y+15);
+					ctx.fillText(""+obj.type,mouse.x+0,mouse.y+35);
+					ctx.fillStyle = "rgba(255,0,0,0.7)";
 				}
 				if( player.fire == player.trigger-1 ){
 					drawspark(x,y);
@@ -127,9 +142,37 @@
 	}
 	
 	function drawGUI() {
+		var angle = Math.atan2(player.y-mouse.y, player.x-mouse.x);
+		var ammoX = 40, ammoY = 5;
+		var dx2 = ammoX;
+		var dy2 = ammoY;
+		dx3 = dx2 * Math.cos(angle) - dy2 * Math.sin(angle);
+		dy3 = dx2 * Math.sin(angle) + dy2 * Math.cos(angle);
+		x2 = dx3 + mouse.x;
+		y2 = dy3 + mouse.y;
+		ctx.textAlign = 'center';
+		ctx.save();
+		ctx.translate(mouse.x,mouse.y);
+		ctx.translate(0, 0);
 		ctx.font = "bold 15px serif";
-		ctx.fillStyle = "rgba(255,255,255,0.7)"; if (player.ammo < 20){ ctx.fillStyle = "rgba(255,255,0,0.7)"; if (player.ammo < 10){ ctx.fillStyle = "rgba(255,50,0,0.8)"; } }
-		ctx.fillText(""+player.ammo,mouse.x+10,mouse.y-10)
+		ctx.fillStyle = "rgba(255,255,255,0.5)"; if (player.ammo < 20){ ctx.fillStyle = "rgba(255,255,0,0.5)"; if (player.ammo < 10){ ctx.fillStyle = "rgba(255,50,0,0.5)"; } }
+		ctx.fillText(""+player.ammo,dx3,dy3)
+		ctx.rotate(Math.atan2( player.y-mouse.y, player.x-mouse.x ));
+		ctx.beginPath();
+		ctx.strokeStyle = "rgba(255,255,255,0.1)";
+		ctx.arc(0, 0, 42, PI+PI/2-0.05, PI+PI/2+0.05, false);
+		ctx.lineWidth = 4;
+		ctx.stroke();ctx.beginPath();
+		ctx.arc(0, 0, 42, PI-PI/2-0.05, PI-PI/2+0.05, false);ctx.stroke();
+		ctx.rotate(-Math.atan2( player.y-mouse.y, player.x-mouse.x )*2);
+		ctx.strokeStyle = "rgba(255,255,255,0.2)";
+		ctx.beginPath();
+		ctx.arc(0, 0, 20, PI+PI/2-0.8, PI+PI/2+0.8, false);ctx.stroke();ctx.beginPath();
+		ctx.arc(0, 0, 20, PI-PI/2-0.8, PI-PI/2+0.8, false);ctx.stroke();
+		
+		//ctx.fillStyle = "rgba(255,255,0,0.5)";
+		//ctx.fillText(""+XP,mouse.x-20,mouse.y-0)
+		ctx.restore();
 	}
 	
 	function drawObjects(){
@@ -170,7 +213,7 @@
 				ctx.shadowOffsetX = (obj.x - C.centerX)/15;
 				ctx.shadowOffsetY = (obj.y - C.centerY)/15;
 				ctx.drawImage(obj.spr,0-obj.w/2,0-obj.h/2,obj.w,obj.h)
-				ctx.globalAlpha = 1.0;
+				//ctx.globalAlpha = 1.0;
 				ctx.shadowColor = 'rgba(0,0,0,0)';
 				if ( obj.alive == true ){
 					ctx.fillStyle = laser
@@ -217,8 +260,8 @@
 				
 				if (obj.ho > 0.0) { obj.ho -= 0.005 }
 				if (obj.fire > 0){obj.fire--}
-				if (obj.timer > -1){ obj.timer++; if( obj.timer > 200 && obj.alpha > 0){ obj.alpha -= 0.0033 } }
-				if (obj.timer > 500){
+				if (obj.timer > -1){ obj.timer++; if( obj.timer > 700 && obj.alpha > 0){ obj.alpha -= 0.0033 } }
+				if (obj.timer > 1000){
 					GameObjects.splice(i, 1);
 				}
 				
@@ -240,8 +283,29 @@
 		ctx.shadowBlur = 20;
 		ctx.shadowOffsetX = (player.x - C.centerX)/15;
 		ctx.shadowOffsetY = (player.y - C.centerY)/15;
+		if( player.invis > 0 ){
+			ctx.beginPath();
+			ctx.arc(0, 0, 40, Math.PI/2, Math.PI*((player.invis/100)/10)+Math.PI/2, false);
+			ctx.lineWidth = 4;
+			ctx.strokeStyle = "rgba(100,255,100,0.2)";
+			ctx.stroke();
+			ctx.globalAlpha = 0.1;
+		}
+		switch( player.invis ){
+			case 1: ctx.globalAlpha = 0.5; s_invisoff.volume = Volume/3; s_invisoff.play(); break;
+			case 3: ctx.globalAlpha = 0.5; break;
+			case 5: ctx.globalAlpha = 0.5; break;
+			case 7: ctx.globalAlpha = 0.5; break;
+			case 9: ctx.globalAlpha = 0.5; break;
+			case 11: ctx.globalAlpha = 0.5; break;
+			case 13: ctx.globalAlpha = 0.5; break;
+			case 14: ctx.globalAlpha = 0.5; break;
+			case 15: ctx.globalAlpha = 0.5; break;
+			case 16: ctx.globalAlpha = 0.5; break;
+		}
 		ctx.drawImage(spr_player,-30,-20,60,40)
 		ctx.shadowColor = 'rgba(0,0,0,0)';
+		ctx.globalAlpha = 1.0;
 		if(player.laser == true){
 			ctx.fillStyle = laser
 			ctx.fillRect(10,-2,3000,1);
@@ -300,23 +364,23 @@
 	
 	function equipRifle() {
 		player.trigger=5;player.recoil=2;player.scatter=0;player.fire=0;player.hit=15;Supress = 30;
-		spr_player.src = riflesprite;shotsourcefile = "sounds/shot.wav";
-		s_equip = new Audio("sounds/equip2.wav"); s_equip.play();
+		spr_player.src = riflesprite;shotsourcefile = src_rifleshot;
+		s_equip = new Audio("sounds/equip2.wav"); s_equip.volume = Volume; s_equip.play();
 	}
 	function equipRifleSilence() {
 		player.trigger=5;player.recoil=2;player.scatter=0;player.fire=0;player.hit=15;Supress = 5;
-		spr_player.src = silencesprite;shotsourcefile = "sounds/shotsilenced.wav";
-		s_equip = new Audio("sounds/equip2.wav"); s_equip.play();
+		spr_player.src = silencesprite;shotsourcefile = src_silenceshot;
+		s_equip = new Audio("sounds/equip2.wav"); s_equip.volume = Volume; s_equip.play();
 	}
 	function equipCanon() {
 		player.trigger=50;player.recoil=5;player.scatter=0;player.fire=0;player.hit=40;Supress = 50;
-		spr_player.src = cannonsprite;shotsourcefile = "sounds/darkshot.wav";
-		s_equip = new Audio("sounds/equip3.wav"); s_equip.play();
+		spr_player.src = cannonsprite;shotsourcefile = src_cannonshot;
+		s_equip = new Audio("sounds/equip3.wav"); s_equip.volume = Volume; s_equip.play();
 	}
 	function equipShotgun() {
 		player.trigger=40;player.recoil=2;player.scatter=5;player.fire=0;player.hit=10;Supress = 50;
-		spr_player.src = shotgunsprite;shotsourcefile = "sounds/barrel.wav";
-		s_equip = new Audio("sounds/equip1.wav"); s_equip.play();
+		spr_player.src = shotgunsprite;shotsourcefile = src_shotgunshot;
+		s_equip = new Audio("sounds/equip1.wav"); s_equip.volume = Volume; s_equip.play();
 	}
 	
 	
@@ -335,10 +399,10 @@
 		for(i = 0; i < GameObjects.length; i++){ obj = GameObjects[i]
 			var dx = obj.x - player.x;
 			var dy = obj.y - player.y;
-			var dx1 = (obj.x-obj.w) - player.x;
-			var dy1 = (obj.y-obj.h) - player.y;
-			var dx2 = (obj.x+obj.w) - player.x;
-			var dy2 = (obj.y+obj.h) - player.y;
+			var dx1 = (obj.x+obj.w) - player.x;
+			var dy1 = (obj.y+obj.h) - player.y;
+			var dx2 = (obj.x-obj.w) - player.x;
+			var dy2 = (obj.y-obj.h) - player.y;
 			if( mouse.x < obj.x+(obj.w/2) && mouse.x > obj.x-(obj.w/2) && mouse.y < obj.y+(obj.h/2) && mouse.y > obj.y-(obj.h/2) ){
 				sound = Math.floor(Math.random()*5)+1; s_hit = new Audio();
 				switch (sound){
@@ -347,15 +411,16 @@
 					case 3: s_hit.src = s_hit3; break;
 					case 4: s_hit.src = s_hit4; break;
 					case 5: s_hit.src = s_hit5; break;
-				} s_hit.play();
+				} s_hit.volume = Volume/5; s_hit.play();
 			}
 			if( obj.alive == true && mouse.x < obj.x+(obj.w/2) && mouse.x > obj.x-(obj.w/2) && mouse.y < obj.y+(obj.h/2) && mouse.y > obj.y-(obj.h/2)  ){
 			//if( obj.alive == true && player.rot > Math.atan2(dx1, dy1) && player.rot < Math.atan2(dx2, dy2) ){
 				obj.hp -= player.hit; obj.ho = 1.0;
 				
 				if( obj.hp < 1 ){
-					var robotspritedead = new Image(); robotspritedead.src = "sprites/robot1dead.png"; s_explosion = new Audio(s_explode);
+					var robotspritedead = new Image(); robotspritedead.src = "sprites/robot1dead.png"; s_explosion = new Audio(s_explode); s_explosion.volume = Volume;
 					s_explosion.play();
+					if( obj.xp ){ XP += obj.xp }
 					obj.spr = robotspritedead;
 					obj.alive = false; if(!obj.timer) { obj.timer = 0; }; obj.alpha = 1.0;
 					obj.expl = 1;
@@ -364,7 +429,7 @@
 			if( obj.type == "explosive" && obj.hp > 0 && mouse.x < obj.x+(obj.w/2) && mouse.x > obj.x-(obj.w/2) && mouse.y < obj.y+(obj.h/2) && mouse.y > obj.y-(obj.h/2) ){
 				obj.hp -= player.hit;
 				if( obj.hp < 1 ){
-					s_explosion = new Audio(s_explode);
+					s_explosion = new Audio(s_explode); s_explosion.volume = Volume;
 					s_explosion.play();
 					obj.expl = 1;
 				}
@@ -379,25 +444,28 @@
 	function AI() {
 		for(i = 0; i < GameObjects.length; i++){ obj = GameObjects[i]
 			if( obj.type == "bot" && obj.alive == true ){
-				if ( ( player.alive == true && player.x < obj.x+obj.range && player.x > obj.x-obj.range && player.y < obj.y+obj.range && player.y > obj.y-obj.range) || ( player.alive == true && Stealth > 0  && player.x < obj.x+obj.range+obj.range*Stealth/10 && player.x > obj.x-obj.range-obj.range*Stealth/10 && player.y < obj.y+obj.range+obj.range*Stealth/10 && player.y > obj.y-obj.range-obj.range*Stealth/10 ) ){
+				if ( ( player.alive == true && player.invis < 1 && player.x < obj.x+obj.range && player.x > obj.x-obj.range && player.y < obj.y+obj.range && player.y > obj.y-obj.range) || ( player.alive == true && player.invis < 1 && Stealth > 0  && player.x < obj.x+obj.range+obj.range*Stealth/10 && player.x > obj.x-obj.range-obj.range*Stealth/10 && player.y < obj.y+obj.range+obj.range*Stealth/10 && player.y > obj.y-obj.range-obj.range*Stealth/10 ) ){
 					var dx = player.x - obj.x;
 					var dy = player.y - obj.y;
 					var dx1 = player.x-20 - obj.x;
 					var dy1 = player.y-20 - obj.y;
 					var dx2 = player.x+20 - obj.x;
 					var dy2 = player.y+20 - obj.y;
-																	if( obj.rot > Math.atan2(dy, dx) ){
-																		obj.rot-=obj.rotv
-																	}else if( obj.rot+obj.rotv < Math.atan2(dy, dx) ){
-																		obj.rot+=obj.rotv/2
-																	}else if( obj.rot+=obj.rotv/2 > Math.atan2(dy, dx) ){obj.rot=Math.atan2(dy, dx)}
-																	else if(obj.rot < Math.atan2(dy, dx) ){
-																		obj.rot+=obj.rotv
-																	}
-					if( obj.fire < 1 ){
-						var thisshot = new Audio("sounds/shot.wav");
+					
+						if( obj.rot > Math.atan2(dy, dx) ){
+							obj.rot-=obj.rotv
+						}else if( obj.rot+obj.rotv < Math.atan2(dy, dx) ){
+							obj.rot+=obj.rotv/2
+						}else if( obj.rot+=obj.rotv/2 > Math.atan2(dy, dx) ){obj.rot=Math.atan2(dy, dx)}
+						else if(obj.rot < Math.atan2(dy, dx) ){
+							obj.rot+=obj.rotv
+						}
+						
+					if( obj.fire < 1 ){ 
+						var s_shot1 = new Audio(src_rifleshot); s_shot1.volume = Volume/3;
+						s_shot1.play();
 						obj.hito = 0.2;
-						obj.fire = obj.trigger; thisshot.play();
+						obj.fire = obj.trigger;
 						if( obj.rot == Math.atan2(dy, dx) ){
 							//Player was hit
 							obj.hito = 0.5; sound = Math.floor(Math.random()*4)+1; s_ricochet = new Audio();
@@ -406,8 +474,8 @@
 								case 2: s_ricochet.src = s_ricochet2; break;
 								case 3: s_ricochet.src = s_ricochet3; break;
 								case 4: s_ricochet.src = s_ricochet4; break;
-							} s_ricochet.play();
-							player.health -= obj.dmg; HOpaque = 1.0;Stealth = 50;
+							} s_ricochet.volume = Volume/2; s_ricochet.play();
+							player.health -= obj.dmg; HOpaque = 1.0;Stealth = 50; player.invis = 0;
 						if( player.alive == true && player.x < obj.x+obj.range && player.x > obj.x-obj.range && player.y < obj.y+obj.range && player.y > obj.y-obj.range ){ Stealth = 50; }
 							if (player.health < 1){
 								player.alive = false;
@@ -466,7 +534,7 @@
 	
 	window.onkeydown = function (e){
 		key = e.keyCode ? e.keyCode : e.which;
-		//console.log(key)
+		console.log(key)
 		if( player.alive == true )
 		switch(key){
 			case 65:
@@ -478,19 +546,21 @@
 			case 83:
 				move.s = true; break;
 			case 82:
-				if(player.laser == false){player.laser = true}else{player.laser = false}
+				if(player.laser == false){player.laser = true}else{player.laser = false}; break;
 			case 49:
-				if( shotsourcefile != "sounds/shot.wav" && player.cooldown == 0 )
+				if( shotsourcefile != src_rifleshot && player.cooldown == 0 )
 				equipRifle(); player.cooldown = 5;  break;
 			case 50:
-				if( shotsourcefile != "sounds/darkshot.wav" && player.cooldown == 0 )
+				if( shotsourcefile != src_cannonshot && player.cooldown == 0 )
 				equipCanon(); player.cooldown = 5; break;
 			case 51:
-				if( shotsourcefile != "sounds/barrel.wav" && player.cooldown == 0 )
+				if( shotsourcefile != src_shotgunshot && player.cooldown == 0 )
 				equipShotgun(); player.cooldown = 5; break;
 			case 52:
-				if( shotsourcefile != "sounds/shotsilenced.wav" && player.cooldown == 0 )
+				if( shotsourcefile != src_silenceshot && player.cooldown == 0 )
 				equipRifleSilence(); player.cooldown = 5; break;
+			case 73:
+				if(player.invis < 1 && Stealth < 30){player.invis = 500; s_invis.volume = Volume; s_invis.play(); }
 		}
 	}
 	window.onkeyup = function (e){
@@ -553,12 +623,12 @@
 				if (  -y > x*2 && -y < -x*2  )   {player.velx = player.recoil;}  //left triangle
 				else if(  -y < x*2 && -y > -x*2  )    {player.velx = -player.recoil;}  //right triangle
 				
-				var s_shot1 = new Audio(shotsourcefile);
+				var s_shot1 = new Audio(shotsourcefile); s_shot1.volume = Volume/3;
 				s_shot1.play();
 				player.ammo--; if( Stealth < Supress ){ Stealth = Supress }
 			}
 			if( player.alive == true && player.fire < 1 && player.ammo == 0){
-				var s_click = new Audio(s_empty);
+				var s_click = new Audio(s_empty); s_click.volume = Volume/3;
 				s_click.play();
 			}
 	};
